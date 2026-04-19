@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "name": "mentat",
+  "display_name": "mentat — Autonomous Agent System",
+  "version": "0.1.0",
+  "commands": [
+    {"name": "bootstrap",  "command": "mentat bootstrap"},
+    {"name": "scan",       "command": "mentat scan ."},
+    {"name": "review",     "command": "mentat review"},
+    {"name": "skill-list", "command": "mentat skill list"},
+    {"name": "serve",      "command": "mentat serve"}
+  ],
+  "install": {"type": "shell", "script": "install.sh"}
+}

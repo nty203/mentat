@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --python 3.12
+
+      - name: Check FTS5
+        run: |
+          uv run python -c "
+          import sqlite3
+          c = sqlite3.connect(':memory:')
+          c.execute('CREATE VIRTUAL TABLE t USING fts5(x)')
+          print('FTS5 OK')
+          "
+
+      - name: Type check
+        run: uv run mypy src/ --strict
+
+      - name: Tests
+        run: uv run pytest --cov=src/mentat --cov-report=term-missing
