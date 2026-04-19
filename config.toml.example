@@ -1,0 +1,12 @@
+[agent]
+name = "mentat"
+db_path = "~/.local/share/mentat/db.sqlite"
+log_level = "info"
+
+[anthropic]
+# api_key is read from ANTHROPIC_API_KEY env var or .env file
+# model = "claude-sonnet-4-5"  # default
+
+[scan]
+max_depth = 5
+# exclude = ["node_modules", ".git", ".venv"]
