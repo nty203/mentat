@@ -29,6 +29,11 @@ jobs:
           print('FTS5 OK')
           "
 
+      - name: Debug install
+        run: |
+          .venv/bin/python -c "import mentat; print(mentat.__file__)"
+          find .venv/lib -name "*mentat*" | head -20
+
       - name: Type check
         run: .venv/bin/mypy -p mentat --strict
 
