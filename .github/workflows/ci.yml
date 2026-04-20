@@ -16,7 +16,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: uv sync --python 3.12
+        run: uv sync --python 3.12 --extra dev
 
       - name: Check FTS5
         run: |
