@@ -60,6 +60,14 @@ if (-not $uv) {
 }
 Write-Host "[1/5] uv found." -ForegroundColor Green
 
+# ── git 체크 ──────────────────────────────────────────────────────────────────
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    Write-Host ""
+    Write-Host "Error: git not found." -ForegroundColor Red
+    Write-Host "  Fix: Install git from https://git-scm.com then re-run this installer."
+    exit 1
+}
+
 # ── Step 2: Python 3.12 ───────────────────────────────────────────────────────
 Write-Host "[2/5] Ensuring Python 3.12..." -ForegroundColor Blue
 $prevPref = $ErrorActionPreference

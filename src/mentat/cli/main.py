@@ -611,6 +611,14 @@ def skill_show(skill_id: str = typer.Argument(...)) -> None:
 @app.command()
 def update() -> None:
     """Update mentat to the latest version from GitHub."""
+    # Check prerequisites before running anything
+    git_exe = shutil.which("git")
+    if not git_exe:
+        console.print("[red bold]Error:[/red bold] git not found.")
+        console.print("  [dim]Cause:[/dim] git is not installed or not in PATH.")
+        console.print("  [dim]Fix:[/dim] Install git from https://git-scm.com and re-run.")
+        raise typer.Exit(1)
+
     repo_root = _find_repo_root()
     if not repo_root:
         console.print("[red bold]Error:[/red bold] Cannot find git repository.")
@@ -625,14 +633,14 @@ def update() -> None:
     updated = False
     for branch in ("master", "main"):
         result = subprocess.run(
-            ["git", "fetch", "--depth", "1", "origin", branch],
+            [git_exe, "fetch", "--depth", "1", "origin", branch],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
         )
         if result.returncode == 0:
             reset = subprocess.run(
-                ["git", "reset", "--hard", f"origin/{branch}"],
+                [git_exe, "reset", "--hard", f"origin/{branch}"],
                 cwd=str(repo_root),
                 capture_output=True,
                 text=True,
