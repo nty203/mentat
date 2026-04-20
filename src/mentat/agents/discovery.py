@@ -13,9 +13,15 @@ from mentat.data_sources.git import GitDataSource
 
 
 class DiscoveryAgent:
-    def __init__(self, scan_path: str = "", anthropic_client: Any = None) -> None:
+    def __init__(
+        self,
+        scan_path: str = "",
+        anthropic_client: Any = None,
+        db_path: str | None = None,
+    ) -> None:
         self._path = scan_path or os.path.expanduser("~")
         self._client = anthropic_client
+        self._db_path = db_path
         self._fs = FsDataSource()
         self._git = GitDataSource()
         self._claude = ClaudeSessionDataSource()
@@ -41,28 +47,35 @@ class DiscoveryAgent:
         if not project_roots:
             return []
 
-        # Phase 0: use mock or real LLM to cluster project roots
         projects = await self._cluster_projects(project_roots)
 
         approvals: list[ApprovalRequest] = []
         for project in projects:
-            approvals.append(
-                ApprovalRequest(
-                    type=ApprovalType.PROJECT_CANDIDATE,
-                    data=project,
-                )
+            req = ApprovalRequest(
+                type=ApprovalType.PROJECT_CANDIDATE,
+                data=project,
             )
+            approvals.append(req)
+
+        if self._db_path:
+            await self._persist(approvals)
+
         return approvals
+
+    async def _persist(self, approvals: list[ApprovalRequest]) -> None:
+        from mentat.db.repository import ApprovalRepository
+
+        repo = ApprovalRepository(self._db_path)  # type: ignore[arg-type]
+        for req in approvals:
+            await repo.save(req)
 
     async def _cluster_projects(self, signals: list[Signal]) -> list[dict[str, Any]]:
         if self._client is None:
-            # Phase 0 mock: treat each signal as a separate project
             return [
                 {"name": os.path.basename(s.path), "path": s.path, "details": s.details}
                 for s in signals
             ]
 
-        # Real LLM call with prompt caching
         paths_text = "\n".join(f"- {s.path} ({s.details})" for s in signals)
         prompt = (
             f"Given these project directories found on disk:\n{paths_text}\n\n"
@@ -81,7 +94,6 @@ class DiscoveryAgent:
             data = json.loads(text)
             return list(data.get("projects", []))
         except Exception:
-            # fallback to one-project-per-signal
             return [
                 {"name": os.path.basename(s.path), "path": s.path, "details": s.details}
                 for s in signals

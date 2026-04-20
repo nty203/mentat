@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko" class="">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mentat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'media',
+      theme: {
+        extend: {
+          colors: {
+            accent: '#10b981',
+            'accent-hover': '#059669',
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+  <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
+  <style>
+    :root {
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --reject: #f87171;
+      --reject-hover: #ef4444;
+    }
+    html { height: 100%; }
+    body { height: 100%; overflow: hidden; }
+    .hint-chip {
+      border: 1px solid #d1d5db;
+      border-radius: 9999px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .hint-chip:hover { border-color: var(--accent); color: var(--accent); }
+    @media (prefers-color-scheme: dark) {
+      .hint-chip { border-color: #4b5563; color: #9ca3af; }
+      .hint-chip:hover { border-color: var(--accent); color: var(--accent); }
+    }
+  </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+  {% block content %}{% endblock %}
+</body>
+</html>

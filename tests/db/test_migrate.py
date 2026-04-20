@@ -19,6 +19,7 @@ def test_migrations_applied(db_path: str, migrations_dir: str) -> None:
     names = [r[0] for r in rows]
     assert "001_initial_schema.sql" in names
     assert "002_skills_schema.sql" in names
+    assert "003_chat_schema.sql" in names
 
 
 def test_migrations_idempotent(db_path: str, migrations_dir: str) -> None:
@@ -29,7 +30,25 @@ def test_migrations_idempotent(db_path: str, migrations_dir: str) -> None:
     conn = sqlite3.connect(db_path)
     count = conn.execute("SELECT COUNT(*) FROM _migrations").fetchone()[0]
     conn.close()
-    assert count == 2
+    assert count == 3
+
+
+def test_chat_messages_table_exists(db_path: str, migrations_dir: str) -> None:
+    MigrationRunner(db_path, migrations_dir).run()
+    conn = sqlite3.connect(db_path)
+    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+    conn.close()
+    assert "chat_messages" in tables
+
+
+def test_chat_messages_role_constraint(db_path: str, migrations_dir: str) -> None:
+    MigrationRunner(db_path, migrations_dir).run()
+    conn = sqlite3.connect(db_path)
+    import pytest as _pytest
+    with _pytest.raises(sqlite3.IntegrityError):
+        conn.execute("INSERT INTO chat_messages (role, content) VALUES ('invalid', 'x')")
+        conn.commit()
+    conn.close()
 
 
 def test_fts5_available(db_path: str, migrations_dir: str) -> None:

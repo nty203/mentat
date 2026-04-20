@@ -29,6 +29,21 @@ async def test_bootstrap_empty_dir(tmp_path: str) -> None:
     assert approvals == []
 
 
+async def test_bootstrap_saves_to_db(project_path: str, db_path: str, migrations_dir: str) -> None:
+    from mentat.db.migrate import MigrationRunner
+    from mentat.db.repository import ApprovalRepository
+
+    MigrationRunner(db_path, migrations_dir).run()
+    agent = DiscoveryAgent(scan_path=project_path, anthropic_client=None, db_path=db_path)
+    approvals = await agent.bootstrap()
+    assert len(approvals) >= 1
+
+    repo = ApprovalRepository(db_path)
+    pending = await repo.list_pending()
+    assert len(pending) >= 1
+    assert pending[0].id == approvals[0].id
+
+
 async def test_bootstrap_mock_llm_empty_projects(project_path: str) -> None:
     client = MagicMock()
     msg = MagicMock()

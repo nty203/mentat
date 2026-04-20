@@ -1,0 +1,147 @@
+<div class="flex flex-col h-full">
+
+  <!-- messages -->
+  <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+    {% if history %}
+      {% for msg in history %}
+        {% if msg.role == 'user' %}
+        <div class="flex justify-end">
+          <div class="bg-emerald-700 text-white rounded-lg px-3 py-2 max-w-[80%] text-sm whitespace-pre-wrap">{{ msg.content }}</div>
+        </div>
+        {% else %}
+        <div class="flex justify-start">
+          <div class="bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2 max-w-[80%] text-sm whitespace-pre-wrap">{{ msg.content }}</div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+    <div id="chat-empty" class="flex flex-col items-center gap-4 py-16 text-gray-400">
+      <p class="text-sm">mentat을 문질러 보세요:</p>
+      <div class="flex gap-2">
+        <button class="hint-chip" onclick="sendHint('승인')">승인</button>
+        <button class="hint-chip" onclick="sendHint('scan')">scan</button>
+        <button class="hint-chip" onclick="sendHint('목록')">목록</button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- input -->
+  <div class="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+    <form id="chat-form" onsubmit="submitChat(event)" class="flex gap-2">
+      <input
+        id="chat-input"
+        type="text"
+        name="message"
+        placeholder="메시지를 입력하세요..."
+        autocomplete="off"
+        class="flex-1 text-sm px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:border-emerald-500"
+      />
+      <button type="submit"
+        class="px-4 py-2 text-sm rounded bg-emerald-600 hover:bg-emerald-500 text-white transition-colors">
+        전송
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+function scrollToBottom() {
+  const el = document.getElementById('chat-messages');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function appendMessage(role, content) {
+  const empty = document.getElementById('chat-empty');
+  if (empty) empty.remove();
+
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'flex ' + (role === 'user' ? 'justify-end' : 'justify-start');
+  const bubble = document.createElement('div');
+  bubble.className = role === 'user'
+    ? 'bg-emerald-700 text-white rounded-lg px-3 py-2 max-w-[80%] text-sm whitespace-pre-wrap'
+    : 'bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2 max-w-[80%] text-sm whitespace-pre-wrap';
+  bubble.textContent = content;
+  div.appendChild(bubble);
+  container.appendChild(div);
+  scrollToBottom();
+  return bubble;
+}
+
+function sendHint(text) {
+  document.getElementById('chat-input').value = text;
+  document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+}
+
+async function submitChat(e) {
+  e.preventDefault();
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+  input.value = '';
+  input.disabled = true;
+
+  appendMessage('user', message);
+
+  const assistantBubble = appendMessage('assistant', '···');
+  assistantBubble.classList.add('animate-pulse');
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'message=' + encodeURIComponent(message),
+    });
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    let started = false;
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      const raw = decoder.decode(value);
+      for (const line of raw.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const chunk = line.slice(6);
+        if (chunk === '[DONE]') break;
+        if (chunk.startsWith('[ERROR]')) {
+          assistantBubble.classList.remove('animate-pulse');
+          assistantBubble.classList.add('text-red-400');
+          assistantBubble.textContent = chunk.slice(8);
+          break;
+        }
+        if (!started) {
+          assistantBubble.classList.remove('animate-pulse');
+          assistantBubble.textContent = '';
+          started = true;
+        }
+        text += chunk;
+        assistantBubble.textContent = text;
+        scrollToBottom();
+      }
+    }
+    if (!started) {
+      assistantBubble.classList.remove('animate-pulse');
+      assistantBubble.textContent = text || '(응답 없음)';
+    }
+  } catch (err) {
+    assistantBubble.classList.remove('animate-pulse');
+    assistantBubble.classList.add('text-red-400');
+    assistantBubble.textContent = '연결 오류 — 다시 시도하세요.';
+  } finally {
+    input.disabled = false;
+    input.focus();
+    scrollToBottom();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', scrollToBottom);
+document.getElementById('chat-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+  }
+});
+</script>

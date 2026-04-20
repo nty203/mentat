@@ -1,0 +1,40 @@
+{% if project %}
+<div class="flex flex-col h-full">
+  <div class="border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
+    <button
+      class="text-sm text-emerald-600 hover:text-emerald-500 flex items-center gap-1"
+      hx-get="/"
+      hx-target="#right-panel"
+      hx-swap="innerHTML"
+      hx-select="#right-panel > *">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      채팅으로 돌아가기
+    </button>
+  </div>
+  <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+    <h2 class="text-lg font-semibold">{{ project.name }}</h2>
+    <div>
+      <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">경로</div>
+      <code class="font-mono text-sm text-gray-700 dark:text-gray-300 break-all">{{ project.path }}</code>
+    </div>
+    <div class="flex gap-4">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">추가됨</div>
+        <div class="text-sm">{{ project.created_at[:10] if project.created_at else '—' }}</div>
+      </div>
+    </div>
+    {% if project.metadata %}
+    <div>
+      <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">메타데이터</div>
+      {% for k, v in project.metadata.items() %}
+        <div class="text-sm"><span class="text-gray-400">{{ k }}:</span> {{ v }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="flex items-center justify-center h-full text-gray-400 text-sm">프로젝트를 찾을 수 없습니다.</div>
+{% endif %}

@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import threading
+import webbrowser
 from pathlib import Path
 from typing import Optional
 
@@ -42,7 +44,6 @@ def _run_migrations(db_path: str) -> None:
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
 def _resolve_scan_paths(cli_path: str) -> list[str]:
-    """Return paths to scan: CLI arg → config paths → home directory."""
     if cli_path:
         return [os.path.abspath(cli_path)]
     from mentat.config import get_scan_paths
@@ -112,7 +113,7 @@ async def _bootstrap(path: str, non_interactive: bool) -> None:
     total_fs = total_git = 0
 
     for scan_path in scan_paths:
-        agent = DiscoveryAgent(scan_path=scan_path, anthropic_client=None)
+        agent = DiscoveryAgent(scan_path=scan_path, anthropic_client=None, db_path=db_path)
         signals = await agent.scan()
         total_fs += sum(1 for s in signals if s.source == "fs")
         total_git += sum(1 for s in signals if s.source == "git")
@@ -126,6 +127,10 @@ async def _bootstrap(path: str, non_interactive: bool) -> None:
         f"[blue][3/3][/blue] Ready. [green]{len(all_approvals)}[/green] project(s) discovered.\n"
     )
     console.print("Run [bold]mentat review[/bold] to inspect the approval queue.")
+
+    if len(all_approvals) > 0:
+        from mentat.notifications import notify
+        notify("mentat", f"{len(all_approvals)}개 프로젝트가 승인 대기 중입니다.")
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
         if non_interactive:
@@ -147,7 +152,6 @@ def config_init() -> None:
     """Interactive setup (API key + scan paths)."""
     console.print(f"[blue bold]mentat config-init[/blue bold]\n")
 
-    # API key
     console.print("[bold][1/2] API Key[/bold]")
     api_key = typer.prompt(
         "ANTHROPIC_API_KEY (leave empty to skip)",
@@ -162,7 +166,6 @@ def config_init() -> None:
     else:
         console.print("[dim]Skipped.\n[/dim]")
 
-    # Scan paths
     console.print("[bold][2/2] Scan Paths[/bold]")
     console.print("[dim]These directories will be scanned when you run 'mentat bootstrap'.[/dim]\n")
     _interactive_paths_ui()
@@ -180,7 +183,7 @@ def config_paths() -> None:
 @config_app.command("show")
 def config_show() -> None:
     """Show current configuration."""
-    from mentat.config import get_config_path, load, get_scan_paths, get_db_path
+    from mentat.config import get_config_path, get_scan_paths, get_db_path
     path = get_config_path()
 
     console.print(f"[dim]Config file: {path}[/dim]\n")
@@ -208,13 +211,11 @@ def config_show() -> None:
 
 
 def _interactive_paths_ui() -> None:
-    """Shared interactive UI for managing scan paths."""
     from mentat.config import get_scan_paths, set_scan_paths, get_config_path
 
     paths: list[str] = list(get_scan_paths())
 
     while True:
-        # Display current state
         _print_paths(paths)
 
         console.print(
@@ -325,8 +326,89 @@ async def _scan(path: str) -> None:
 
 @app.command()
 def review() -> None:
-    """Show approval queue."""
-    console.print("[dim]Approval queue is empty. Run [bold]mentat bootstrap[/bold] first.[/dim]")
+    """Show approval queue and interactively approve or reject."""
+    asyncio.run(_review())
+
+
+async def _review() -> None:
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    from mentat.config import get_db_path
+    db_path = get_db_path()
+
+    try:
+        _run_migrations(db_path)
+    except RuntimeError as e:
+        console.print(f"[red bold]Error:[/red bold] {e}")
+        raise typer.Exit(1)
+
+    from mentat.db.repository import ApprovalRepository, ProjectRepository
+    repo = ApprovalRepository(db_path)
+    pending = await repo.list_pending()
+
+    if not pending:
+        console.print("[dim]Approval queue is empty. Run [bold]mentat bootstrap[/bold] first.[/dim]")
+        return
+
+    table = Table(show_header=True, title=f"Approval Queue ({len(pending)} pending)")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Name", style="bold")
+    table.add_column("Path")
+    table.add_column("Type")
+
+    for i, req in enumerate(pending, 1):
+        table.add_row(
+            str(i),
+            req.data.get("name", req.id[:8]),
+            req.data.get("path", ""),
+            req.type.value,
+        )
+
+    console.print(table)
+    console.print()
+    console.print("[bold][[a][/bold] Approve all  [bold][r][/bold] Review one by one  [bold][q][/bold] Quit")
+
+    choice = typer.prompt(">", default="").strip().lower()
+
+    project_repo = ProjectRepository(db_path)
+
+    if choice == "a":
+        for req in pending:
+            await repo.approve(req.id)
+            await project_repo.save(
+                name=req.data.get("name", req.id[:8]),
+                path=req.data.get("path", ""),
+                metadata={"source": req.data.get("source", "fs"), "details": req.data.get("details", "")},
+            )
+        console.print(f"[green]✓[/green] {len(pending)}개 모두 승인했습니다.")
+
+    elif choice == "r":
+        approved = rejected = 0
+        for req in pending:
+            name = req.data.get("name", req.id[:8])
+            path = req.data.get("path", "")
+            console.print(f"\n[bold]{name}[/bold]  [dim]{path}[/dim]")
+            decision = typer.prompt("[y] approve  [n] reject  [s] skip", default="s").strip().lower()
+            if decision == "y":
+                await repo.approve(req.id)
+                await project_repo.save(
+                    name=name,
+                    path=path,
+                    metadata={"source": req.data.get("source", "fs"), "details": req.data.get("details", "")},
+                )
+                console.print("[green]✓ 승인[/green]")
+                approved += 1
+            elif decision == "n":
+                await repo.reject(req.id)
+                console.print("[red]✗ 거절[/red]")
+                rejected += 1
+            else:
+                console.print("[dim]건너뜀[/dim]")
+        console.print(f"\n[green]{approved}개 승인[/green]  [red]{rejected}개 거절[/red]")
+
+    else:
+        console.print("[dim]취소됨.[/dim]")
 
 
 # ─── serve ────────────────────────────────────────────────────────────────────
@@ -334,15 +416,35 @@ def review() -> None:
 @app.command()
 def serve(
     port: int = typer.Option(8765, "--port", help="Port to listen on"),
+    no_open: bool = typer.Option(False, "--no-open", help="Don't open browser automatically"),
 ) -> None:
-    """Start introspection API."""
+    """Start web UI and introspection API."""
     import uvicorn
-    from mentat.core.introspection import app as fastapi_app
+    from dotenv import load_dotenv
+    load_dotenv()
 
-    console.print(f"Starting introspection API on [bold]http://127.0.0.1:{port}[/bold]")
-    console.print("Press Ctrl+C to stop.\n")
+    from mentat.config import get_db_path
+    db_path = get_db_path()
+
     try:
-        uvicorn.run(fastapi_app, host="127.0.0.1", port=port)
+        _run_migrations(db_path)
+    except RuntimeError as e:
+        console.print(f"[red bold]Error:[/red bold] {e}")
+        raise typer.Exit(1)
+
+    from mentat.web.app import create_app
+    fastapi_app = create_app(db_path)
+
+    url = f"http://127.0.0.1:{port}"
+    console.print(f"Starting mentat web UI on [bold]{url}[/bold]")
+    console.print("Press Ctrl+C to stop.\n")
+
+    if not no_open:
+        timer = threading.Timer(1.0, webbrowser.open, args=[url])
+        timer.start()
+
+    try:
+        uvicorn.run(fastapi_app, host="127.0.0.1", port=port, log_level="warning")
     except OSError as e:
         if "address already in use" in str(e).lower() or "10048" in str(e):
             console.print(f"\n[red bold]Error:[/red bold] Port {port} is in use.")
@@ -384,7 +486,28 @@ def feedback(
 @project_app.command("list")
 def project_list() -> None:
     """List projects."""
-    console.print("[dim]No projects yet. Run [bold]mentat bootstrap[/bold].[/dim]")
+    asyncio.run(_project_list())
+
+
+async def _project_list() -> None:
+    from mentat.config import get_db_path
+    db_path = get_db_path()
+    try:
+        _run_migrations(db_path)
+    except RuntimeError:
+        pass
+    from mentat.db.repository import ProjectRepository
+    projects = await ProjectRepository(db_path).list_all()
+    if not projects:
+        console.print("[dim]No projects yet. Run [bold]mentat bootstrap[/bold].[/dim]")
+        return
+    table = Table(show_header=True)
+    table.add_column("Name", style="bold")
+    table.add_column("Path")
+    table.add_column("Added")
+    for p in projects:
+        table.add_row(p["name"], p["path"], p.get("created_at", "")[:10])
+    console.print(table)
 
 
 @project_app.command("add")
