@@ -40,4 +40,3 @@ asyncio_mode = "auto"
 
 [tool.mypy]
 strict = true
-mypy_path = "src"
