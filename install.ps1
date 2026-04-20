@@ -25,6 +25,9 @@ function Find-Uv {
         "$env:USERPROFILE\.cargo\bin\uv.exe",
         "$env:USERPROFILE\.local\bin\uv.exe"
     )
+    # also search winget install location (dynamic path)
+    Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\astral-sh.uv_*\uv.exe" -ErrorAction SilentlyContinue |
+        Select-Object -First 1 | ForEach-Object { $candidates += $_.FullName }
     foreach ($c in $candidates) {
         if (Test-Path $c) { return $c }
     }
@@ -55,7 +58,7 @@ if (-not $uv) {
     Write-Host "Error: uv installation failed. Install manually: https://docs.astral.sh/uv/" -ForegroundColor Red
     exit 1
 }
-Write-Host "[1/5] uv found: $uv" -ForegroundColor Green
+Write-Host "[1/5] uv found." -ForegroundColor Green
 
 # ── Step 2: Python 3.12 ───────────────────────────────────────────────────────
 Write-Host "[2/5] Ensuring Python 3.12..." -ForegroundColor Blue
@@ -113,7 +116,6 @@ set MENTAT_INSTALL_DIR=$InstallDir
 "@
 Set-Content -Path "$BinDir\mentat.cmd" -Value $wrapper -Encoding ASCII
 
-# Also create a PS1 wrapper for PowerShell users
 $psWrapper = @"
 `$env:MENTAT_INSTALL_DIR = "$InstallDir"
 & "$InstallDir\.venv\Scripts\python.exe" -m mentat.cli.main @args
@@ -122,19 +124,50 @@ Set-Content -Path "$BinDir\mentat.ps1" -Value $psWrapper -Encoding UTF8
 
 Write-Host "[5/5] Created $BinDir\mentat.cmd" -ForegroundColor Green
 
-# ── PATH ──────────────────────────────────────────────────────────────────────
+# ── PATH: registry (permanent) ────────────────────────────────────────────────
 $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
 if ($userPath -notlike "*$BinDir*") {
     [System.Environment]::SetEnvironmentVariable("PATH", "$BinDir;$userPath", "User")
-    $env:PATH = "$BinDir;$env:PATH"
-    Write-Host ""
-    Write-Host "  PATH updated. Restart your terminal to use 'mentat' everywhere." -ForegroundColor Yellow
 }
+# Apply to current session immediately
+if ($env:PATH -notlike "*$BinDir*") {
+    $env:PATH = "$BinDir;$env:PATH"
+}
+
+# ── PATH: PowerShell profile (persists across sessions) ──────────────────────
+$profileLine = "`$env:PATH = `"$BinDir;`$env:PATH`"  # mentat"
+$needsProfile = $true
+if (Test-Path $PROFILE) {
+    $content = Get-Content $PROFILE -Raw -ErrorAction SilentlyContinue
+    if ($content -like "*$BinDir*") { $needsProfile = $false }
+}
+if ($needsProfile) {
+    $profileDir = Split-Path $PROFILE
+    if (-not (Test-Path $profileDir)) { New-Item -ItemType Directory -Force -Path $profileDir | Out-Null }
+    if (-not (Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force | Out-Null }
+    Add-Content $PROFILE "`n$profileLine"
+}
+
+# ── Broadcast PATH change to running processes ────────────────────────────────
+try {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public class WinEnv {
+    [DllImport("user32.dll", SetLastError=true, CharSet=CharSet.Auto)]
+    public static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
+        uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
+}
+'@ -ErrorAction SilentlyContinue
+    $result = [UIntPtr]::Zero
+    [WinEnv]::SendMessageTimeout([IntPtr]0xFFFF, 0x001A, [UIntPtr]::Zero, "Environment", 2, 1000, [ref]$result) | Out-Null
+} catch {}
 
 Write-Host ""
 Write-Host "mentat installed successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "Get started:"
+Write-Host "Get started (works in this terminal right now):"
 Write-Host "  mentat bootstrap       # scan projects"
 Write-Host "  mentat serve           # open web UI"
 Write-Host "  mentat update          # update to latest version"
