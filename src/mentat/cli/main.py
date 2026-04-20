@@ -624,6 +624,84 @@ def update() -> None:
     console.print("[green bold]Update complete.[/green bold] Restart mentat to use the new version.")
 
 
+# ─── autostart ────────────────────────────────────────────────────────────────
+
+autostart_app = typer.Typer(help="Manage autostart (run on login).")
+app.add_typer(autostart_app, name="autostart")
+
+
+def _python_exe() -> str:
+    repo_root = _find_repo_root()
+    if repo_root:
+        win = repo_root / ".venv" / "Scripts" / "pythonw.exe"
+        if win.exists():
+            return str(win)
+    return sys.executable
+
+
+def _startup_vbs() -> Path:
+    startup = (
+        Path(os.environ.get("APPDATA", ""))
+        / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+    )
+    return startup / "mentat.vbs"
+
+
+@autostart_app.command("enable")
+def autostart_enable(
+    port: int = typer.Option(8765, "--port"),
+) -> None:
+    """Run mentat serve silently at Windows login (Startup folder)."""
+    if sys.platform != "win32":
+        console.print("[red bold]Error:[/red bold] autostart is only supported on Windows.")
+        raise typer.Exit(1)
+
+    python = _python_exe()
+    vbs = _startup_vbs()
+    vbs.write_text(
+        f'Set ws = CreateObject("WScript.Shell")\r\n'
+        f'ws.Run "{python} -m mentat.cli.main serve --no-open --port {port}", 0, False\r\n',
+        encoding="utf-8",
+    )
+
+    console.print(f"[green]✓[/green] Autostart enabled on port [bold]{port}[/bold].")
+    console.print(f"  [dim]{vbs}[/dim]")
+    console.print(f"\nmentat will start silently at next login.")
+    console.print(f"To open the UI: [bold]http://127.0.0.1:{port}[/bold]")
+    console.print(f"\nTo start now:  [bold]mentat serve --no-open[/bold]")
+
+
+@autostart_app.command("disable")
+def autostart_disable() -> None:
+    """Remove mentat from Windows Startup folder."""
+    if sys.platform != "win32":
+        console.print("[red bold]Error:[/red bold] autostart is only supported on Windows.")
+        raise typer.Exit(1)
+
+    vbs = _startup_vbs()
+    if vbs.exists():
+        vbs.unlink()
+        console.print("[green]✓[/green] Autostart disabled.")
+    else:
+        console.print("[dim]Autostart was not enabled.[/dim]")
+
+
+@autostart_app.command("status")
+def autostart_status() -> None:
+    """Show autostart status."""
+    if sys.platform != "win32":
+        console.print("[red bold]Error:[/red bold] autostart is only supported on Windows.")
+        raise typer.Exit(1)
+
+    vbs = _startup_vbs()
+    if vbs.exists():
+        console.print("[green]Autostart: enabled[/green]")
+        console.print(f"  [dim]{vbs}[/dim]")
+    else:
+        console.print("[dim]Autostart: disabled[/dim]")
+        console.print("Run [bold]mentat autostart enable[/bold] to set up.")
+
+
 # ─── entry point ──────────────────────────────────────────────────────────────
 
 def app_entry() -> None:
