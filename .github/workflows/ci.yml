@@ -28,7 +28,7 @@ jobs:
           "
 
       - name: Type check
-        run: uv run mypy mentat --strict
+        run: MYPYPATH=src uv run mypy mentat --strict
 
       - name: Tests
         run: uv run pytest --cov=src/mentat --cov-report=term-missing
