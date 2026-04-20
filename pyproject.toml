@@ -17,6 +17,7 @@ dependencies = [
   "python-multipart>=0.0.9",
   "aiofiles>=23.0.0",
   "plyer>=2.1.0",
+  "google-auth>=2.0.0",
 ]
 
 [project.optional-dependencies]

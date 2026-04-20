@@ -85,7 +85,8 @@ async def generate_response(message: str, db_path: str) -> AsyncGenerator[str, N
         await chat_repo.save(role="assistant", content=reply)
 
     else:
-        if os.environ.get("ANTHROPIC_API_KEY"):
+        from mentat.core.llm import is_available
+        if is_available():
             async for chunk in _claude_fallback(message, db_path):
                 yield chunk
         else:
@@ -105,8 +106,6 @@ async def _claude_fallback(message: str, db_path: str) -> AsyncGenerator[str, No
 
     chat_repo = ChatRepository(db_path)
     try:
-        import anthropic
-
         history = await chat_repo.history(limit=20)
         messages = [
             {"role": m["role"], "content": m["content"]}
@@ -116,10 +115,11 @@ async def _claude_fallback(message: str, db_path: str) -> AsyncGenerator[str, No
         if not messages or messages[-1]["role"] != "user":
             messages.append({"role": "user", "content": message})
 
-        client = anthropic.Anthropic()
+        from mentat.core.llm import make_client
+        client, models = make_client()
         full_reply: list[str] = []
         with client.messages.stream(
-            model="claude-haiku-4-5-20251001",
+            model=models["haiku"],
             max_tokens=512,
             system="You are mentat, an autonomous PM assistant for solo developers. Be concise.",
             messages=messages,

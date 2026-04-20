@@ -5,7 +5,13 @@ log_level = "info"
 
 [anthropic]
 # api_key is read from ANTHROPIC_API_KEY env var or .env file
-# model = "claude-sonnet-4-5"  # default
+
+# ── Vertex AI (Google Cloud) ──────────────────────────────────────────────────
+# Use instead of ANTHROPIC_API_KEY when on a gcloud-authenticated machine.
+# Run: gcloud auth application-default login
+# [vertex]
+# project_id = "my-gcp-project"
+# region = "us-east5"   # Claude-supported regions: us-east5, europe-west1
 
 [scan]
 # Directories to scan when running 'mentat bootstrap' or 'mentat scan'

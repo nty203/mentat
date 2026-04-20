@@ -66,3 +66,19 @@ def set_api_key(key: str) -> None:
     new_lines = [ln for ln in lines if not ln.startswith("ANTHROPIC_API_KEY")]
     new_lines.append(f"ANTHROPIC_API_KEY={key}")
     env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
+
+def get_vertex_config() -> dict[str, str]:
+    return dict(load().get("vertex", {}))
+
+
+def set_vertex_config(project_id: str, region: str) -> None:
+    cfg = load()
+    cfg["vertex"] = {"project_id": project_id, "region": region}
+    save(cfg)
+
+
+def clear_vertex_config() -> None:
+    cfg = load()
+    cfg.pop("vertex", None)
+    save(cfg)

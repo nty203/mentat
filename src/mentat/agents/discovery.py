@@ -85,8 +85,14 @@ class DiscoveryAgent:
         )
 
         try:
-            response = await self._client.messages.create(
-                model="claude-sonnet-4-5",
+            from mentat.core.llm import make_client
+            client = self._client
+            model = "claude-sonnet-4-5"
+            if client is None:
+                client, models = make_client()
+                model = models["sonnet"]
+            response = await client.messages.create(
+                model=model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
             )

@@ -172,29 +172,34 @@ async def _bootstrap(path: str, non_interactive: bool) -> None:
         from mentat.notifications import notify
         notify("mentat", f"{len(all_approvals)}개 프로젝트가 승인 대기 중입니다.")
 
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    from mentat.core.llm import is_available, backend_name
+    if not is_available():
         if non_interactive:
             console.print(
-                "\n[red bold]Error:[/red bold] ANTHROPIC_API_KEY not set.\n"
+                "\n[red bold]Error:[/red bold] No AI credentials configured.\n"
                 "Run [bold]mentat config-init[/bold] to configure."
             )
             raise typer.Exit(1)
         console.print(
-            "\n[yellow]Warning:[/yellow] ANTHROPIC_API_KEY not set. "
-            "Needed for Phase 1 features. Run [bold]mentat config-init[/bold]."
+            "\n[yellow]Warning:[/yellow] No AI credentials configured. "
+            "Run [bold]mentat config-init[/bold]."
         )
+    else:
+        console.print(f"  [dim]AI backend: {backend_name()}[/dim]")
 
 
 # ─── config-init ──────────────────────────────────────────────────────────────
 
 @app.command("config-init")
 def config_init() -> None:
-    """Interactive setup (API key + scan paths)."""
+    """Interactive setup (API key / Vertex AI + scan paths)."""
     console.print(f"[blue bold]mentat config-init[/blue bold]\n")
 
-    console.print("[bold][1/2] API Key[/bold]")
+    # ── [1/3] Anthropic API key ──────────────────────────────────────────────
+    console.print("[bold][1/3] Anthropic API Key[/bold]")
+    console.print("[dim]Leave empty to use Vertex AI instead.[/dim]")
     api_key = typer.prompt(
-        "ANTHROPIC_API_KEY (leave empty to skip)",
+        "ANTHROPIC_API_KEY",
         default="",
         hide_input=True,
         show_default=False,
@@ -204,9 +209,36 @@ def config_init() -> None:
         set_api_key(api_key)
         console.print("[green]✓[/green] Saved to .env\n")
     else:
-        console.print("[dim]Skipped.\n[/dim]")
+        console.print("[dim]Skipped.[/dim]\n")
 
-    console.print("[bold][2/2] Scan Paths[/bold]")
+    # ── [2/3] Vertex AI ──────────────────────────────────────────────────────
+    if not api_key:
+        console.print("[bold][2/3] Vertex AI (Google Cloud)[/bold]")
+        console.print("[dim]Uses gcloud ADC — run 'gcloud auth application-default login' first.[/dim]")
+        use_vertex = typer.confirm("Configure Vertex AI?", default=False)
+        if use_vertex:
+            from mentat.config import set_vertex_config, get_vertex_config
+            existing = get_vertex_config()
+            project_id = typer.prompt(
+                "GCP Project ID",
+                default=existing.get("project_id", os.environ.get("GOOGLE_CLOUD_PROJECT", "")),
+            ).strip()
+            region = typer.prompt(
+                "Region",
+                default=existing.get("region", "us-east5"),
+            ).strip()
+            if project_id:
+                set_vertex_config(project_id, region)
+                console.print(f"[green]✓[/green] Vertex AI configured: {project_id} / {region}\n")
+            else:
+                console.print("[yellow]Skipped (no project ID).[/yellow]\n")
+        else:
+            console.print("[dim]Skipped.[/dim]\n")
+    else:
+        console.print("[bold][2/3] Vertex AI[/bold]  [dim]Skipped (API key set)[/dim]\n")
+
+    # ── [3/3] Scan paths ─────────────────────────────────────────────────────
+    console.print("[bold][3/3] Scan Paths[/bold]")
     console.print("[dim]These directories will be scanned when you run 'mentat bootstrap'.[/dim]\n")
     _interactive_paths_ui()
 
@@ -223,22 +255,24 @@ def config_paths() -> None:
 @config_app.command("show")
 def config_show() -> None:
     """Show current configuration."""
-    from mentat.config import get_config_path, get_scan_paths, get_db_path
+    from mentat.config import get_config_path, get_scan_paths, get_db_path, get_vertex_config
+    from mentat.core.llm import backend_name
     path = get_config_path()
 
     console.print(f"[dim]Config file: {path}[/dim]\n")
 
-    if not path.exists():
-        console.print("[dim]No config file found. Run [bold]mentat config-init[/bold].[/dim]")
-        return
-
     scan_paths = get_scan_paths()
     db_path = get_db_path()
+    vertex = get_vertex_config()
 
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column("Key", style="bold")
     table.add_column("Value")
 
+    table.add_row("ai.backend", backend_name())
+    if vertex:
+        table.add_row("vertex.project_id", vertex.get("project_id", ""))
+        table.add_row("vertex.region", vertex.get("region", ""))
     table.add_row("db_path", db_path)
     if scan_paths:
         table.add_row("scan.paths", scan_paths[0])
