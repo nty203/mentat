@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import glob
 import os
+import shutil
+import subprocess
 import sys
 import threading
 import webbrowser
@@ -51,6 +54,43 @@ def _resolve_scan_paths(cli_path: str) -> list[str]:
     if configured:
         return configured
     return [os.path.expanduser("~")]
+
+
+def _find_uv() -> str:
+    uv = shutil.which("uv")
+    if uv:
+        return uv
+    candidates: list[Path] = [
+        Path.home() / ".cargo" / "bin" / "uv",
+        Path.home() / ".local" / "bin" / "uv",
+    ]
+    if sys.platform == "win32":
+        localappdata = os.environ.get("LOCALAPPDATA", "")
+        candidates += [
+            Path(localappdata) / "Programs" / "uv" / "uv.exe",
+        ]
+        candidates += [
+            Path(p)
+            for p in glob.glob(
+                os.path.join(
+                    localappdata, "Microsoft", "WinGet", "Packages", "astral-sh.uv_*", "uv.exe"
+                )
+            )
+        ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return "uv"
+
+
+def _find_repo_root() -> Optional[Path]:
+    for start in [Path(sys.executable), Path(__file__)]:
+        current = start.parent
+        for _ in range(8):
+            if (current / ".git").exists():
+                return current
+            current = current.parent
+    return None
 
 
 # ─── main callback ────────────────────────────────────────────────────────────
@@ -205,7 +245,7 @@ def config_show() -> None:
         for p in scan_paths[1:]:
             table.add_row("", p)
     else:
-        table.add_row("scan.paths", "[dim](none — will use home directory)[/dim]")
+        table.add_row("scan.paths", "[dim](none -- will use home directory)[/dim]")
 
     console.print(table)
 
@@ -530,6 +570,58 @@ def skill_show(skill_id: str = typer.Argument(...)) -> None:
     """Show skill details."""
     console.print(f"[red bold]Error:[/red bold] Skill not found: {skill_id}")
     raise typer.Exit(1)
+
+
+# ─── update ───────────────────────────────────────────────────────────────────
+
+@app.command()
+def update() -> None:
+    """Update mentat to the latest version from GitHub."""
+    repo_root = _find_repo_root()
+    if not repo_root:
+        console.print("[red bold]Error:[/red bold] Cannot find git repository.")
+        console.print("  [dim]Cause:[/dim] mentat was not installed from a git clone.")
+        console.print("  [dim]Fix:[/dim] Re-install using install.ps1 or install.sh.")
+        raise typer.Exit(1)
+
+    console.print(f"Updating mentat from [bold]{repo_root}[/bold]...\n")
+
+    # git fetch + reset to latest
+    console.print("[blue][1/2][/blue] Pulling latest changes...")
+    updated = False
+    for branch in ("master", "main"):
+        result = subprocess.run(
+            ["git", "fetch", "--depth", "1", "origin", branch],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            reset = subprocess.run(
+                ["git", "reset", "--hard", f"origin/{branch}"],
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+            )
+            if reset.returncode == 0:
+                msg = reset.stdout.strip()
+                console.print(f"  [green]✓[/green] {msg or 'Already up to date.'}")
+                updated = True
+                break
+    if not updated:
+        console.print("[red bold]Error:[/red bold] git pull failed.")
+        raise typer.Exit(1)
+
+    # uv sync
+    console.print("[blue][2/2][/blue] Syncing dependencies...")
+    uv = _find_uv()
+    sync = subprocess.run([uv, "sync"], cwd=str(repo_root), capture_output=True, text=True)
+    if sync.returncode != 0:
+        console.print(f"[red bold]Error:[/red bold] uv sync failed:\n  {sync.stderr.strip()}")
+        raise typer.Exit(1)
+
+    console.print("  [green]✓[/green] Dependencies synced.\n")
+    console.print("[green bold]Update complete.[/green bold] Restart mentat to use the new version.")
 
 
 # ─── entry point ──────────────────────────────────────────────────────────────
