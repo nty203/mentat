@@ -46,12 +46,12 @@ def save(config: dict[str, Any]) -> Path:
 
 def get_scan_paths() -> list[str]:
     paths = load().get("scan", {}).get("paths", [])
-    return [str(Path(os.path.expanduser(p)).expandvars()) for p in paths]
+    return [str(Path(os.path.expandvars(os.path.expanduser(p)))) for p in paths]
 
 
 def get_db_path() -> str:
     db = load().get("agent", {}).get("db_path", str(_DEFAULT_DB))
-    return str(Path(os.path.expanduser(str(db))).expandvars())
+    return str(Path(os.path.expandvars(os.path.expanduser(str(db)))))
 
 
 def set_scan_paths(paths: list[str]) -> None:
