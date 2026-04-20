@@ -16,9 +16,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: |
-          uv venv --python 3.12
-          uv pip install ".[dev]"
+        run: uv sync --python 3.12 --extra dev --no-editable
 
       - name: Check FTS5
         run: |
@@ -29,13 +27,8 @@ jobs:
           print('FTS5 OK')
           "
 
-      - name: Debug install
-        run: |
-          .venv/bin/python -c "import mentat; print(mentat.__file__)"
-          find .venv/lib -name "*mentat*" | head -20
-
       - name: Type check
-        run: .venv/bin/mypy -p mentat --strict
+        run: uv run mypy -p mentat --strict
 
       - name: Tests
         run: uv run pytest --cov=mentat --cov-report=term-missing
