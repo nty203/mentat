@@ -119,6 +119,7 @@ New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 
 $wrapper = @"
 @echo off
+chcp 65001 > nul
 set MENTAT_INSTALL_DIR=$InstallDir
 "$InstallDir\.venv\Scripts\python.exe" -m mentat.cli.main %*
 "@

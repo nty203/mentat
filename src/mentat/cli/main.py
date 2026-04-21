@@ -753,4 +753,12 @@ def autostart_status() -> None:
 def app_entry() -> None:
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        import ctypes
+        ctypes.windll.kernel32.SetConsoleOutputCP(65001)  # type: ignore[attr-defined]
+        ctypes.windll.kernel32.SetConsoleCP(65001)  # type: ignore[attr-defined]
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        except Exception:
+            pass
     app()
