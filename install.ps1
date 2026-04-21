@@ -89,6 +89,11 @@ if ($Local) {
         & git -C $InstallDir reset --hard origin/main
     }
 } else {
+    # Remove broken partial install if it exists (no .git but dir present)
+    if (Test-Path $InstallDir) {
+        Write-Host "  Removing incomplete install at $InstallDir..."
+        Remove-Item -Recurse -Force $InstallDir
+    }
     Write-Host "  Cloning to $InstallDir..."
     New-Item -ItemType Directory -Force -Path (Split-Path $InstallDir) | Out-Null
     & git clone --depth 1 "https://github.com/$REPO.git" $InstallDir

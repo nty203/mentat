@@ -84,6 +84,14 @@ def _find_uv() -> str:
 
 
 def _find_repo_root() -> Optional[Path]:
+    # MENTAT_INSTALL_DIR is set by the mentat.cmd wrapper — most reliable
+    install_dir = os.environ.get("MENTAT_INSTALL_DIR", "")
+    if install_dir:
+        p = Path(install_dir)
+        if (p / ".git").exists():
+            return p
+
+    # Fallback: walk up from the Python executable or this source file
     for start in [Path(sys.executable), Path(__file__)]:
         current = start.parent
         for _ in range(8):
