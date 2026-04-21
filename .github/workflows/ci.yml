@@ -28,7 +28,7 @@ jobs:
           "
 
       - name: Type check
-        run: .venv/bin/mypy -p mentat --strict
+        run: uv run mypy -p mentat --strict
 
       - name: Tests
         run: uv run pytest --cov=mentat --cov-report=term-missing

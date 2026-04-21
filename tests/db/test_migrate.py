@@ -25,12 +25,13 @@ def test_migrations_applied(db_path: str, migrations_dir: str) -> None:
 def test_migrations_idempotent(db_path: str, migrations_dir: str) -> None:
     runner = MigrationRunner(db_path, migrations_dir)
     runner.run()
-    runner.run()  # second run must not raise
+    first_count = sqlite3.connect(db_path).execute("SELECT COUNT(*) FROM _migrations").fetchone()[0]
+    runner.run()  # second run must not raise or add duplicates
 
     conn = sqlite3.connect(db_path)
     count = conn.execute("SELECT COUNT(*) FROM _migrations").fetchone()[0]
     conn.close()
-    assert count == 3
+    assert count == first_count  # idempotent: same count after re-run
 
 
 def test_chat_messages_table_exists(db_path: str, migrations_dir: str) -> None:
