@@ -127,6 +127,16 @@ async def _claude_fallback(message: str, db_path: str) -> AsyncGenerator[str, No
             for text in stream.text_stream:
                 full_reply.append(text)
                 yield text
+            try:
+                final = stream.get_final_message()
+                from mentat.db.repository import TokenRepository
+                await TokenRepository(db_path).record(
+                    model=final.model,
+                    input_tokens=final.usage.input_tokens,
+                    output_tokens=final.usage.output_tokens,
+                )
+            except Exception:
+                pass
 
         await chat_repo.save(role="assistant", content="".join(full_reply))
     except Exception as e:

@@ -78,6 +78,26 @@ def set_model(model: str) -> None:
     save(cfg)
 
 
+def get_token_limit() -> int:
+    return int(load().get("tokens", {}).get("limit", 0))
+
+
+def set_token_limit(limit: int) -> None:
+    cfg = load()
+    cfg.setdefault("tokens", {})["limit"] = limit
+    save(cfg)
+
+
+def get_scan_interval() -> int:
+    return int(load().get("scan", {}).get("interval_minutes", 60))
+
+
+def set_scan_interval(minutes: int) -> None:
+    cfg = load()
+    cfg.setdefault("scan", {})["interval_minutes"] = minutes
+    save(cfg)
+
+
 def get_vertex_config() -> dict[str, str]:
     return dict(load().get("vertex", {}))
 

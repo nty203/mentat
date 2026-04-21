@@ -190,6 +190,68 @@ class SkillRepository:
         return d
 
 
+_COST_PER_M: dict[str, tuple[float, float]] = {
+    "claude-haiku-4-5-20251001": (0.80, 4.0),
+    "claude-haiku-4-5": (0.80, 4.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-opus-4-7": (15.0, 75.0),
+    "claude-3-5-haiku@20241022": (0.80, 4.0),
+    "claude-3-5-sonnet-v2@20241022": (3.0, 15.0),
+    "claude-3-opus@20240229": (15.0, 75.0),
+}
+
+
+def _estimate_cost(by_model: dict[str, dict[str, int]]) -> float:
+    total = 0.0
+    for model, usage in by_model.items():
+        rates = _COST_PER_M.get(model, (3.0, 15.0))
+        total += usage["input"] / 1_000_000 * rates[0]
+        total += usage["output"] / 1_000_000 * rates[1]
+    return round(total, 4)
+
+
+class TokenRepository:
+    def __init__(self, db_path: str) -> None:
+        self._db_path = db_path
+
+    async def record(self, model: str, input_tokens: int, output_tokens: int) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "INSERT INTO token_usage (model, input_tokens, output_tokens) VALUES (?, ?, ?)",
+                (model, input_tokens, output_tokens),
+            )
+            await db.commit()
+
+    async def totals(self) -> dict[str, Any]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT model, SUM(input_tokens) as input, SUM(output_tokens) as output"
+                " FROM token_usage GROUP BY model"
+            ) as cursor:
+                rows = await cursor.fetchall()
+            async with db.execute(
+                "SELECT SUM(input_tokens) as ti, SUM(output_tokens) as to_"
+                " FROM token_usage"
+            ) as cursor:
+                totals_row = await cursor.fetchone()
+        by_model = {r["model"]: {"input": r["input"] or 0, "output": r["output"] or 0} for r in rows}
+        total_input = (totals_row["ti"] or 0) if totals_row else 0
+        total_output = (totals_row["to_"] or 0) if totals_row else 0
+        return {
+            "total_input": total_input,
+            "total_output": total_output,
+            "total_tokens": total_input + total_output,
+            "by_model": by_model,
+            "estimated_cost_usd": _estimate_cost(by_model),
+        }
+
+    async def reset(self) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute("DELETE FROM token_usage")
+            await db.commit()
+
+
 class ChatRepository:
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path

@@ -14,6 +14,7 @@ from mentat.db.repository import (
     ProjectRepository,
     RunRepository,
     SkillRepository,
+    TokenRepository,
 )
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -37,6 +38,7 @@ def _workers_dir() -> Path:
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> Any:
+    from mentat.core.llm import is_available, backend_name
     db_path = _db(request)
     pending = await ApprovalRepository(db_path).list_pending()
     projects = await ProjectRepository(db_path).list_all()
@@ -54,6 +56,8 @@ async def index(request: Request) -> Any:
             "skills": skills,
             "runs": runs,
             "workers": workers,
+            "available": is_available(),
+            "backend": backend_name(),
         },
     )
 
@@ -243,28 +247,84 @@ async def worker_detail(request: Request, name: str) -> Any:
 
 # ── settings ─────────────────────────────────────────────────────────────────
 
+async def _settings_ctx(request: Request, saved: bool = False) -> dict[str, Any]:
+    from mentat.config import get_model, get_token_limit, get_scan_interval
+    from mentat.core.llm import backend_name, is_available
+    token_stats = await TokenRepository(_db(request)).totals()
+    return {
+        "current_model": get_model(),
+        "backend": backend_name(),
+        "available": is_available(),
+        "token_limit": get_token_limit(),
+        "scan_interval": get_scan_interval(),
+        "token_stats": token_stats,
+        "saved": saved,
+    }
+
+
 @router.get("/api/settings", response_class=HTMLResponse)
 async def settings_page(request: Request) -> Any:
-    from mentat.config import get_model
-    from mentat.core.llm import backend_name
     return templates.TemplateResponse(
-        request,
-        "partials/settings.html",
-        {"current_model": get_model(), "backend": backend_name()},
+        request, "partials/settings.html", await _settings_ctx(request)
     )
 
 
 @router.post("/api/settings", response_class=HTMLResponse)
 async def save_settings(request: Request) -> Any:
-    from mentat.config import get_model, set_model
-    from mentat.core.llm import backend_name
+    from mentat.config import set_model, set_token_limit, set_scan_interval
     form = await request.form()
-    model = str(form.get("model", "sonnet")).strip()
-    set_model(model)
+    set_model(str(form.get("model", "sonnet")).strip())
+    try:
+        set_token_limit(int(str(form.get("token_limit", "0")).strip()))
+    except ValueError:
+        pass
+    try:
+        interval = int(str(form.get("scan_interval", "60")).strip())
+        if interval >= 1:
+            set_scan_interval(interval)
+    except ValueError:
+        pass
+    return templates.TemplateResponse(
+        request, "partials/settings.html", await _settings_ctx(request, saved=True)
+    )
+
+
+@router.get("/api/status/connection", response_class=HTMLResponse)
+async def connection_status(request: Request) -> Any:
+    from mentat.core.llm import is_available, backend_name
     return templates.TemplateResponse(
         request,
-        "partials/settings.html",
-        {"current_model": get_model(), "backend": backend_name(), "saved": True},
+        "partials/connection_badge.html",
+        {"available": is_available(), "backend": backend_name()},
+    )
+
+
+@router.post("/api/test-connection")
+async def test_connection() -> dict[str, Any]:
+    import asyncio
+
+    def _call() -> dict[str, Any]:
+        try:
+            from mentat.core.llm import make_client, get_configured_model
+            client, models = make_client()
+            model = get_configured_model(models)
+            response = client.messages.create(
+                model=model,
+                max_tokens=5,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+            return {"ok": True, "model": response.model}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    return await asyncio.get_event_loop().run_in_executor(None, _call)
+
+
+@router.post("/api/token-usage/reset", response_class=HTMLResponse)
+async def reset_token_usage(request: Request) -> Any:
+    await TokenRepository(_db(request)).reset()
+    return templates.TemplateResponse(
+        request, "partials/settings.html", await _settings_ctx(request, saved=True)
     )
 
 
