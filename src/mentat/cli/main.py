@@ -636,14 +636,14 @@ def update() -> None:
             [git_exe, "fetch", "--depth", "1", "origin", branch],
             cwd=str(repo_root),
             capture_output=True,
-            text=True,
+            encoding="utf-8", errors="replace",
         )
         if result.returncode == 0:
             reset = subprocess.run(
                 [git_exe, "reset", "--hard", f"origin/{branch}"],
                 cwd=str(repo_root),
                 capture_output=True,
-                text=True,
+                encoding="utf-8", errors="replace",
             )
             if reset.returncode == 0:
                 msg = reset.stdout.strip()
@@ -657,9 +657,13 @@ def update() -> None:
     # uv sync
     console.print("[blue][2/2][/blue] Syncing dependencies...")
     uv = _find_uv()
-    sync = subprocess.run([uv, "sync"], cwd=str(repo_root), capture_output=True, text=True)
+    sync = subprocess.run(
+        [uv, "sync"], cwd=str(repo_root), capture_output=True,
+        encoding="utf-8", errors="replace",
+    )
     if sync.returncode != 0:
-        console.print(f"[red bold]Error:[/red bold] uv sync failed:\n  {sync.stderr.strip()}")
+        err = (sync.stderr or "").strip() or (sync.stdout or "").strip()
+        console.print(f"[red bold]Error:[/red bold] uv sync failed:\n  {err}")
         raise typer.Exit(1)
 
     console.print("  [green]✓[/green] Dependencies synced.\n")
