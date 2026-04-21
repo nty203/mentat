@@ -18,7 +18,7 @@
     <div class="flex gap-4">
       <div>
         <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">추가됨</div>
-        <div class="text-sm">{{ project.created_at[:10] if project.created_at else '—' }}</div>
+        <div class="text-sm"><span data-utc="{{ project.created_at }}">{{ project.created_at[:10] if project.created_at else '—' }}</span></div>
       </div>
     </div>
     {% if project.metadata %}

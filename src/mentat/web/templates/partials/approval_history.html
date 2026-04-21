@@ -25,7 +25,7 @@
             {% else %}pending{% endif %}
           </span>
         </div>
-        <div class="text-xs text-gray-400 font-mono">{{ req.type }} · {{ req.created_at[:16].replace('T', ' ') if req.created_at else '' }}</div>
+        <div class="text-xs text-gray-400 font-mono">{{ req.type }} · <span data-utc="{{ req.created_at }}">{{ req.created_at[:16] if req.created_at else '' }}</span></div>
       </div>
       {% endfor %}
     {% else %}

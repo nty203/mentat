@@ -46,5 +46,23 @@
 </head>
 <body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
   {% block content %}{% endblock %}
+<script>
+// Convert all data-utc elements to local time on load and after htmx swaps
+function localizeTimestamps(root) {
+  (root || document).querySelectorAll('[data-utc]').forEach(el => {
+    const raw = el.getAttribute('data-utc');
+    if (!raw) return;
+    try {
+      const d = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z');
+      el.textContent = d.toLocaleString('ko-KR', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+      });
+    } catch {}
+  });
+}
+document.addEventListener('DOMContentLoaded', () => localizeTimestamps());
+document.addEventListener('htmx:afterSwap', e => localizeTimestamps(e.detail.elt));
+</script>
 </body>
 </html>

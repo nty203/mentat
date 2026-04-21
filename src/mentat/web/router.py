@@ -114,6 +114,28 @@ async def project_detail(request: Request, project_id: str) -> Any:
     )
 
 
+@router.get("/api/browse/folder")
+async def browse_folder() -> dict[str, str]:
+    """Open a native OS folder picker and return the selected path."""
+    import asyncio
+
+    def _pick() -> str:
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            folder = filedialog.askdirectory(title="프로젝트 폴더 선택")
+            root.destroy()
+            return folder or ""
+        except Exception:
+            return ""
+
+    path = await asyncio.get_event_loop().run_in_executor(None, _pick)
+    return {"path": path}
+
+
 @router.post("/api/projects/add")
 async def add_project(request: Request) -> Any:
     form = await request.form()

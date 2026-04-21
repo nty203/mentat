@@ -66,6 +66,10 @@
           <input id="add-project-path" type="text" name="path"
             placeholder="폴더 경로 입력..."
             class="flex-1 text-xs px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:border-emerald-500"/>
+          <button type="button" onclick="browseFolder()" title="폴더 선택"
+            class="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 text-gray-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors">
+            📁
+          </button>
           <button onclick="submitAddProject()"
             class="px-2 py-1 text-xs rounded bg-emerald-600 hover:bg-emerald-500 text-white transition-colors">추가</button>
           <button type="button" onclick="toggleAddProject()"
@@ -169,6 +173,15 @@ async function submitAddProject() {
   } else {
     errorEl.textContent = await resp.text();
     errorEl.classList.remove('hidden');
+  }
+}
+
+async function browseFolder() {
+  const resp = await fetch('/api/browse/folder');
+  const data = await resp.json();
+  if (data.path) {
+    document.getElementById('add-project-path').value = data.path;
+    document.getElementById('add-project-error').classList.add('hidden');
   }
 }
 

@@ -28,13 +28,13 @@
       </div>
       <div>
         <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">시작</div>
-        <div class="text-sm">{{ run.started_at[:16].replace('T', ' ') if run.started_at else '—' }}</div>
+        <div class="text-sm"><span data-utc="{{ run.started_at }}">{{ run.started_at[:16] if run.started_at else '—' }}</span></div>
       </div>
     </div>
     {% if run.finished_at %}
     <div>
       <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">완료</div>
-      <div class="text-sm">{{ run.finished_at[:16].replace('T', ' ') }}</div>
+      <div class="text-sm"><span data-utc="{{ run.finished_at }}">{{ run.finished_at[:16] }}</span></div>
     </div>
     {% endif %}
     {% if run.result %}
