@@ -53,7 +53,7 @@ def _resolve_scan_paths(cli_path: str) -> list[str]:
     configured = get_scan_paths()
     if configured:
         return configured
-    return [os.path.expanduser("~")]
+    return []  # empty = caller should use DB projects or home
 
 
 def _find_uv() -> str:
@@ -145,11 +145,17 @@ async def _bootstrap(path: str, non_interactive: bool) -> None:
 
     # [2/3] Scan
     scan_paths = _resolve_scan_paths(path)
-
-    if scan_paths == [os.path.expanduser("~")] and not path:
+    if not scan_paths:
+        # Use manually-added project paths from DB
+        from mentat.db.repository import ProjectRepository
+        projects = await ProjectRepository(db_path).list_all()
+        scan_paths = [p["path"] for p in projects]
+    if not scan_paths:
+        scan_paths = [os.path.expanduser("~")]
         console.print(
-            "\n[yellow]Tip:[/yellow] No scan paths configured. "
-            "Run [bold]mentat config paths[/bold] to set specific directories.\n"
+            "\n[yellow]Tip:[/yellow] 스캔 경로가 설정되지 않았습니다. "
+            "[bold]프로젝트 탭[/bold]에서 폴더를 추가하거나 "
+            "[bold]mentat config paths[/bold]로 경로를 설정하세요.\n"
         )
 
     console.print("[blue][2/3][/blue] Scanning for projects...")

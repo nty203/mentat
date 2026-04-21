@@ -86,7 +86,21 @@ async def approvals_history(request: Request) -> Any:
 
 @router.post("/api/approvals/{request_id}/approve", response_class=HTMLResponse)
 async def approve(request: Request, request_id: str) -> HTMLResponse:
-    await ApprovalRepository(_db(request)).approve(request_id)
+    from mentat.core.approval import ApprovalType
+    db_path = _db(request)
+    repo = ApprovalRepository(db_path)
+    approval = await repo.get(request_id)
+    updated = await repo.approve(request_id)
+    if updated and approval and approval.type == ApprovalType.PROJECT_CANDIDATE:
+        data = approval.data
+        path = data.get("path", "")
+        if path:
+            await ProjectRepository(db_path).save(
+                name=data.get("name", Path(path).name),
+                path=path,
+                metadata={"source": "discovery", "details": data.get("details", "")},
+            )
+        return HTMLResponse("", headers={"HX-Trigger": "projectListChanged"})
     return HTMLResponse("")
 
 
@@ -183,7 +197,11 @@ async def run_scan(request: Request) -> Any:
     async def _do_scan() -> None:
         from mentat.config import get_scan_paths
         from mentat.agents.discovery import DiscoveryAgent
-        paths = get_scan_paths() or [os.path.expanduser("~")]
+        paths = get_scan_paths()
+        if not paths:
+            # Use manually-added project paths from DB; fall back to home only if DB is empty
+            projects = await ProjectRepository(db_path).list_all()
+            paths = [p["path"] for p in projects] or [os.path.expanduser("~")]
         for path in paths:
             agent = DiscoveryAgent(scan_path=path, anthropic_client=None, db_path=db_path)
             try:

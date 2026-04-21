@@ -117,7 +117,10 @@
         </button>
       </div>
 
-      <div id="project-list" class="flex-1 overflow-y-auto">
+      <div id="project-list" class="flex-1 overflow-y-auto"
+           hx-get="/api/projects"
+           hx-trigger="projectListChanged from:body"
+           hx-swap="innerHTML">
         {% include "partials/project_list.html" %}
       </div>
     </div>

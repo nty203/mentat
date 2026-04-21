@@ -52,6 +52,16 @@ class ApprovalRepository:
                 rows = await cursor.fetchall()
         return [dict(r) for r in rows]
 
+    async def get(self, request_id: str) -> ApprovalRequest | None:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT id, type, data, approved, created_at FROM approval_requests WHERE id = ?",
+                (request_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+        return _row_to_approval(dict(row)) if row else None
+
     async def approve(self, request_id: str) -> bool:
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
