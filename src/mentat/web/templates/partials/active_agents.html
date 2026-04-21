@@ -1,0 +1,19 @@
+{% for run in active %}
+<div class="border-b border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+     hx-get="/api/runs/{{ run.id }}"
+     hx-target="#right-panel"
+     hx-swap="innerHTML">
+  <div class="px-4 py-2 flex items-center gap-3">
+    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse flex-shrink-0"></span>
+    <div class="min-w-0 flex-1">
+      <div class="text-xs font-medium text-blue-700 dark:text-blue-400 truncate">
+        {{ run.agent_id }} — {{ run.task }}
+      </div>
+      {% if run.progress %}
+      <div class="text-[10px] text-blue-500 truncate">{{ run.progress }}</div>
+      {% endif %}
+    </div>
+    <span class="text-[10px] text-blue-400 flex-shrink-0 font-mono">분석중</span>
+  </div>
+</div>
+{% endfor %}

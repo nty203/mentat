@@ -162,6 +162,18 @@ async def add_project(request: Request) -> Any:
     )
 
 
+# ── active agents ────────────────────────────────────────────────────────────
+
+@router.get("/api/agents/active", response_class=HTMLResponse)
+async def active_agents(request: Request) -> Any:
+    active = await RunRepository(_db(request)).list_active()
+    return templates.TemplateResponse(
+        request,
+        "partials/active_agents.html",
+        {"active": active},
+    )
+
+
 # ── skills ───────────────────────────────────────────────────────────────────
 
 @router.get("/api/skills", response_class=HTMLResponse)

@@ -20,9 +20,9 @@
             {% if req.approved == 1 %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400
             {% elif req.approved == 0 %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
             {% else %}bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400{% endif %}">
-            {% if req.approved == 1 %}approved
-            {% elif req.approved == 0 %}rejected
-            {% else %}pending{% endif %}
+            {% if req.approved == 1 %}승인됨
+            {% elif req.approved == 0 %}거절됨
+            {% else %}대기중{% endif %}
           </span>
         </div>
         <div class="text-xs text-gray-400 font-mono">{{ req.type }} · <span data-utc="{{ req.created_at }}">{{ req.created_at[:16] if req.created_at else '' }}</span></div>

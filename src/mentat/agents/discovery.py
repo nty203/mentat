@@ -40,27 +40,59 @@ class DiscoveryAgent:
         return signals
 
     async def bootstrap(self) -> list[ApprovalRequest]:
-        signals = await self.scan()
+        from mentat.db.repository import RunRepository
 
-        project_roots = [s for s in signals if s.type == "project_root"]
-
-        if not project_roots:
-            return []
-
-        projects = await self._cluster_projects(project_roots)
-
-        approvals: list[ApprovalRequest] = []
-        for project in projects:
-            req = ApprovalRequest(
-                type=ApprovalType.PROJECT_CANDIDATE,
-                data=project,
-            )
-            approvals.append(req)
-
+        run_id: str | None = None
+        run_repo: RunRepository | None = None
         if self._db_path:
-            await self._persist(approvals)
+            run_repo = RunRepository(self._db_path)
+            run_id = await run_repo.create_run(
+                agent_id="discovery",
+                task=f"프로젝트 스캔: {self._path}",
+                progress="신호 수집 중...",
+            )
 
-        return approvals
+        try:
+            if run_repo and run_id:
+                await run_repo.set_progress(run_id, "파일시스템 및 Git 분석 중...")
+            signals = await self.scan()
+
+            project_roots = [s for s in signals if s.type == "project_root"]
+
+            if not project_roots:
+                if run_repo and run_id:
+                    await run_repo.update_run(run_id, "done", "발견된 프로젝트 없음", "완료")
+                return []
+
+            if run_repo and run_id:
+                await run_repo.set_progress(
+                    run_id, f"프로젝트 분류 중... ({len(project_roots)}개 후보)"
+                )
+            projects = await self._cluster_projects(project_roots)
+
+            approvals: list[ApprovalRequest] = []
+            for project in projects:
+                req = ApprovalRequest(
+                    type=ApprovalType.PROJECT_CANDIDATE,
+                    data=project,
+                )
+                approvals.append(req)
+
+            if self._db_path:
+                await self._persist(approvals)
+
+            if run_repo and run_id:
+                await run_repo.update_run(
+                    run_id,
+                    "done",
+                    f"{len(approvals)}개 프로젝트 발견",
+                    "완료",
+                )
+            return approvals
+        except Exception as e:
+            if run_repo and run_id:
+                await run_repo.update_run(run_id, "error", str(e), "오류 발생")
+            raise
 
     async def _persist(self, approvals: list[ApprovalRequest]) -> None:
         from mentat.db.repository import ApprovalRepository

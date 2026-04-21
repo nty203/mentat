@@ -15,7 +15,9 @@
           {% if skill.source == 'evolved' %}bg-purple-100 text-purple-600
           {% elif skill.source == 'auto' %}bg-blue-100 text-blue-600
           {% else %}bg-gray-100 text-gray-500{% endif %}">
-          {{ skill.source }}
+          {% if skill.source == 'evolved' %}진화됨
+          {% elif skill.source == 'auto' %}자동
+          {% else %}수동{% endif %}
         </span>
       </div>
     </div>

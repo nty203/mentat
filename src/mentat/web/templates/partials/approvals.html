@@ -11,7 +11,7 @@
           hx-target="#approval-{{ req.id }}"
           hx-swap="delete swap:150ms"
           hx-on::after-request="if(event.detail.failed){this.closest('li').style.opacity='1';alert('승인 실패 — 다시 시도하세요')}">
-          approve
+          승인
         </button>
         <button
           class="px-3 py-1 text-xs rounded border border-red-400 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
@@ -19,7 +19,7 @@
           hx-target="#approval-{{ req.id }}"
           hx-swap="delete swap:150ms"
           hx-on::after-request="if(event.detail.failed){this.closest('li').style.opacity='1';alert('거절 실패 — 다시 시도하세요')}">
-          reject
+          거절
         </button>
       </div>
     </li>

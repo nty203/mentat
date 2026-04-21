@@ -25,27 +25,34 @@
       </div>
     </div>
 
+    <!-- Active agents (polled every 3s, hidden when empty) -->
+    <div id="active-agents-bar"
+         hx-get="/api/agents/active"
+         hx-trigger="load, every 3s"
+         hx-swap="innerHTML">
+    </div>
+
     <!-- Tab nav -->
     <div class="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0" id="tab-nav">
       <button onclick="switchTab('queue')" id="tab-queue"
         class="tab-btn active flex-1 py-2 text-xs font-medium">
-        Queue{% if pending %}<span class="ml-1 bg-emerald-600 text-white rounded-full px-1.5 py-px text-[9px] align-middle">{{ pending|length }}</span>{% endif %}
+        대기열{% if pending %}<span class="ml-1 bg-emerald-600 text-white rounded-full px-1.5 py-px text-[9px] align-middle">{{ pending|length }}</span>{% endif %}
       </button>
       <button onclick="switchTab('projects')" id="tab-projects"
         class="tab-btn flex-1 py-2 text-xs font-medium">
-        Projects
+        프로젝트
       </button>
       <button onclick="switchTab('skills')" id="tab-skills"
         class="tab-btn flex-1 py-2 text-xs font-medium">
-        Skills
+        스킬
       </button>
       <button onclick="switchTab('runs')" id="tab-runs"
         class="tab-btn flex-1 py-2 text-xs font-medium">
-        Runs
+        실행
       </button>
       <button onclick="switchTab('workers')" id="tab-workers"
         class="tab-btn flex-1 py-2 text-xs font-medium">
-        Workers
+        워커
       </button>
     </div>
 

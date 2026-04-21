@@ -129,11 +129,52 @@ class RunRepository:
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
 
+    async def create_run(self, agent_id: str, task: str, progress: str = "") -> str:
+        import uuid
+        run_id = str(uuid.uuid4())
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "INSERT INTO agent_runs (id, agent_id, task, status, progress, started_at)"
+                " VALUES (?, ?, ?, 'running', ?, datetime('now'))",
+                (run_id, agent_id, task, progress),
+            )
+            await db.commit()
+        return run_id
+
+    async def update_run(
+        self, run_id: str, status: str, result: str = "", progress: str = ""
+    ) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE agent_runs SET status=?, result=?, progress=?,"
+                " finished_at=datetime('now') WHERE id=?",
+                (status, result, progress, run_id),
+            )
+            await db.commit()
+
+    async def set_progress(self, run_id: str, progress: str) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE agent_runs SET progress=? WHERE id=?",
+                (progress, run_id),
+            )
+            await db.commit()
+
+    async def list_active(self) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT id, agent_id, task, status, progress, result, started_at, finished_at"
+                " FROM agent_runs WHERE status='running' ORDER BY started_at DESC"
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
     async def list_recent(self, limit: int = 50) -> list[dict[str, Any]]:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
-                "SELECT id, agent_id, task, status, result, started_at, finished_at"
+                "SELECT id, agent_id, task, status, progress, result, started_at, finished_at"
                 " FROM agent_runs ORDER BY started_at DESC LIMIT ?",
                 (limit,),
             ) as cursor:
@@ -144,7 +185,7 @@ class RunRepository:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
-                "SELECT id, agent_id, task, status, result, started_at, finished_at"
+                "SELECT id, agent_id, task, status, progress, result, started_at, finished_at"
                 " FROM agent_runs WHERE id = ?",
                 (run_id,),
             ) as cursor:
