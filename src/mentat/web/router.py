@@ -174,6 +174,35 @@ async def active_agents(request: Request) -> Any:
     )
 
 
+@router.post("/api/scan/run", response_class=HTMLResponse)
+async def run_scan(request: Request) -> Any:
+    import asyncio as _asyncio
+
+    db_path = _db(request)
+
+    async def _do_scan() -> None:
+        from mentat.config import get_scan_paths
+        from mentat.agents.discovery import DiscoveryAgent
+        paths = get_scan_paths() or [os.path.expanduser("~")]
+        for path in paths:
+            agent = DiscoveryAgent(scan_path=path, anthropic_client=None, db_path=db_path)
+            try:
+                await agent.bootstrap()
+            except Exception:
+                pass
+
+    _asyncio.create_task(_do_scan())
+
+    # Give the task a moment to create the run record, then return active bar
+    await _asyncio.sleep(0.15)
+    active = await RunRepository(db_path).list_active()
+    return templates.TemplateResponse(
+        request,
+        "partials/active_agents.html",
+        {"active": active},
+    )
+
+
 # ── skills ───────────────────────────────────────────────────────────────────
 
 @router.get("/api/skills", response_class=HTMLResponse)

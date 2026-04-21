@@ -65,10 +65,23 @@
            class="flex-1">
         {% include "partials/approvals.html" %}
       </div>
-      <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-800 flex-shrink-0">
+      <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 flex items-center justify-between">
         <button hx-get="/api/approvals/history" hx-target="#right-panel" hx-swap="innerHTML"
           class="text-xs text-gray-400 hover:text-emerald-500 transition-colors">
           히스토리 보기 →
+        </button>
+        <button id="scan-btn"
+          hx-post="/api/scan/run"
+          hx-target="#active-agents-bar"
+          hx-swap="innerHTML"
+          hx-on::before-request="this.disabled=true; this.textContent='탐색 중...'"
+          hx-on::after-request="this.disabled=false; this.textContent='탐색 실행'"
+          class="text-xs text-emerald-600 hover:text-emerald-500 flex items-center gap-1 transition-colors disabled:opacity-50">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          탐색 실행
         </button>
       </div>
     </div>
