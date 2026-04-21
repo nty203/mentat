@@ -11,7 +11,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $REPO = "nty203/mentat"
-$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
+$SCRIPT_DIR = if ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path } else { $PWD.Path }
 
 Write-Host "mentat installer" -ForegroundColor Cyan
 Write-Host ""
