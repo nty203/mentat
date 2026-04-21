@@ -68,6 +68,16 @@ def set_api_key(key: str) -> None:
     env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
 
+def get_model() -> str:
+    return load().get("anthropic", {}).get("model", "sonnet")
+
+
+def set_model(model: str) -> None:
+    cfg = load()
+    cfg.setdefault("anthropic", {})["model"] = model
+    save(cfg)
+
+
 def get_vertex_config() -> dict[str, str]:
     return dict(load().get("vertex", {}))
 

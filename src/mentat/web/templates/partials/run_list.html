@@ -1,0 +1,37 @@
+{% if runs %}
+  {% for run in runs %}
+  <div class="px-4 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+       hx-get="/api/runs/{{ run.id }}"
+       hx-target="#right-panel"
+       hx-swap="innerHTML">
+    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0
+      {% if run.status == 'done' %}bg-emerald-500
+      {% elif run.status == 'running' %}bg-blue-500 animate-pulse
+      {% elif run.status == 'error' %}bg-red-500
+      {% else %}bg-gray-400{% endif %}">
+    </span>
+    <div class="min-w-0 flex-1">
+      <div class="text-sm truncate">{{ run.task }}</div>
+      <div class="text-xs text-gray-400">
+        {{ run.agent_id }}
+        {% if run.started_at %}· {{ run.started_at[:16].replace('T', ' ') }}{% endif %}
+      </div>
+    </div>
+    <span class="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0
+      {% if run.status == 'done' %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400
+      {% elif run.status == 'running' %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400
+      {% elif run.status == 'error' %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
+      {% else %}bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400{% endif %}">
+      {{ run.status }}
+    </span>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="px-4 py-10 text-center">
+    <div class="text-3xl mb-3">📋</div>
+    <div class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">실행 기록 없음</div>
+    <div class="text-xs text-gray-400 dark:text-gray-500">
+      <code class="font-mono">mentat bootstrap</code>으로<br>첫 스캔을 시작하세요.
+    </div>
+  </div>
+{% endif %}

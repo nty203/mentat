@@ -6,11 +6,13 @@ from typing import Any, Optional
 # Model names per backend
 _MODELS_DIRECT = {
     "haiku": "claude-haiku-4-5-20251001",
-    "sonnet": "claude-sonnet-4-5",
+    "sonnet": "claude-sonnet-4-6",
+    "opus": "claude-opus-4-7",
 }
 _MODELS_VERTEX = {
     "haiku": "claude-3-5-haiku@20241022",
     "sonnet": "claude-3-5-sonnet-v2@20241022",
+    "opus": "claude-3-opus@20240229",
 }
 
 
@@ -54,6 +56,13 @@ def make_client() -> tuple[Any, dict[str, str]]:
         "  Option A: set ANTHROPIC_API_KEY\n"
         "  Option B: configure Vertex AI (mentat config-init)"
     )
+
+
+def get_configured_model(models: dict[str, str]) -> str:
+    """Returns model ID from config. Falls back to sonnet."""
+    from mentat.config import load
+    key_or_id = load().get("anthropic", {}).get("model", "sonnet")
+    return models.get(key_or_id, key_or_id)
 
 
 def is_available() -> bool:

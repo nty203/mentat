@@ -1,0 +1,37 @@
+{% if skills %}
+  {% for skill in skills %}
+  <div class="px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group"
+       hx-get="/api/skills/{{ skill.id }}"
+       hx-target="#right-panel"
+       hx-swap="innerHTML">
+    <div class="min-w-0 flex-1">
+      <div class="text-sm font-medium truncate">{{ skill.name }}</div>
+      <div class="text-xs text-gray-400 truncate">{{ skill.description }}</div>
+      <div class="flex gap-2 mt-0.5">
+        <span class="text-[10px] text-gray-400">v{{ skill.version }}</span>
+        <span class="text-[10px] text-gray-400">{{ (skill.success_rate * 100)|int }}% 성공률</span>
+        <span class="text-[10px] text-gray-400">{{ skill.usage_count }}회 사용</span>
+        <span class="text-[10px] px-1 rounded
+          {% if skill.source == 'evolved' %}bg-purple-100 text-purple-600
+          {% elif skill.source == 'auto' %}bg-blue-100 text-blue-600
+          {% else %}bg-gray-100 text-gray-500{% endif %}">
+          {{ skill.source }}
+        </span>
+      </div>
+    </div>
+    <svg class="w-4 h-4 text-gray-300 group-hover:text-gray-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="px-4 py-10 text-center">
+    <div class="text-3xl mb-3">⚡</div>
+    <div class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">스킬 없음</div>
+    <div class="text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
+      Phase 3에서 DiscoveryAgent가<br>
+      반복 작업 패턴을 자동으로 발견하여<br>
+      스킬로 승격합니다.
+    </div>
+  </div>
+{% endif %}

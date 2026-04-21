@@ -1,0 +1,35 @@
+<div class="flex flex-col h-full">
+  <div class="border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
+    <button hx-get="/api/chat/panel" hx-target="#right-panel" hx-swap="innerHTML"
+      class="text-sm text-emerald-600 hover:text-emerald-500 flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      돌아가기
+    </button>
+    <span class="text-sm font-medium">승인 히스토리</span>
+    <span class="text-xs text-gray-400">{{ approvals|length }}건</span>
+  </div>
+  <div class="flex-1 overflow-y-auto">
+    {% if approvals %}
+      {% for req in approvals %}
+      <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-sm font-medium truncate flex-1">{{ req.id[:8] }} — {{ req.type }}</div>
+          <span class="ml-2 text-xs px-2 py-0.5 rounded-full flex-shrink-0
+            {% if req.approved == 1 %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400
+            {% elif req.approved == 0 %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
+            {% else %}bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400{% endif %}">
+            {% if req.approved == 1 %}approved
+            {% elif req.approved == 0 %}rejected
+            {% else %}pending{% endif %}
+          </span>
+        </div>
+        <div class="text-xs text-gray-400 font-mono">{{ req.type }} · {{ req.created_at[:16].replace('T', ' ') if req.created_at else '' }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="px-4 py-10 text-center text-gray-400 text-sm">승인 기록이 없습니다.</div>
+    {% endif %}
+  </div>
+</div>

@@ -125,6 +125,71 @@ class ProjectRepository:
         return d
 
 
+class RunRepository:
+    def __init__(self, db_path: str) -> None:
+        self._db_path = db_path
+
+    async def list_recent(self, limit: int = 50) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT id, agent_id, task, status, result, started_at, finished_at"
+                " FROM agent_runs ORDER BY started_at DESC LIMIT ?",
+                (limit,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get(self, run_id: str) -> dict[str, Any] | None:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT id, agent_id, task, status, result, started_at, finished_at"
+                " FROM agent_runs WHERE id = ?",
+                (run_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+        return dict(row) if row else None
+
+
+class SkillRepository:
+    def __init__(self, db_path: str) -> None:
+        self._db_path = db_path
+
+    async def list_all(self) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT id, name, description, triggers, source, version,"
+                " success_rate, usage_count, created_at"
+                " FROM skills ORDER BY usage_count DESC, created_at DESC"
+            ) as cursor:
+                rows = await cursor.fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["triggers"] = json.loads(d["triggers"])
+            result.append(d)
+        return result
+
+    async def get(self, skill_id: str) -> dict[str, Any] | None:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT id, name, description, triggers, body, examples, tools_used,"
+                " source, version, success_rate, usage_count, parent_id, created_at"
+                " FROM skills WHERE id = ?",
+                (skill_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+        if row is None:
+            return None
+        d = dict(row)
+        for field in ("triggers", "examples", "tools_used"):
+            d[field] = json.loads(d[field])
+        return d
+
+
 class ChatRepository:
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path

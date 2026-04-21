@@ -115,11 +115,11 @@ async def _claude_fallback(message: str, db_path: str) -> AsyncGenerator[str, No
         if not messages or messages[-1]["role"] != "user":
             messages.append({"role": "user", "content": message})
 
-        from mentat.core.llm import make_client
+        from mentat.core.llm import make_client, get_configured_model
         client, models = make_client()
         full_reply: list[str] = []
         with client.messages.stream(
-            model=models["haiku"],
+            model=get_configured_model(models),
             max_tokens=512,
             system="You are mentat, an autonomous PM assistant for solo developers. Be concise.",
             messages=messages,

@@ -6,56 +6,105 @@
   <div class="w-[30%] flex flex-col border-r border-gray-200 dark:border-gray-700 overflow-hidden">
 
     <!-- header -->
-    <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+    <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
       <span class="font-semibold text-sm tracking-wide">mentat</span>
+      <button onclick="loadSettings()" class="text-gray-400 hover:text-emerald-500 transition-colors" title="설정">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>
     </div>
 
-    <!-- APPROVAL QUEUE -->
-    <div class="flex-shrink-0">
-      <div class="px-4 py-2 flex items-center justify-between">
-        <span class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-medium">Approval Queue</span>
-        {% if pending %}
-        <span class="text-xs bg-emerald-600 text-white rounded-full px-2 py-0.5">{{ pending|length }}</span>
-        {% endif %}
-      </div>
+    <!-- Tab nav -->
+    <div class="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0" id="tab-nav">
+      <button onclick="switchTab('queue')" id="tab-queue"
+        class="tab-btn active flex-1 py-2 text-xs font-medium">
+        Queue{% if pending %}<span class="ml-1 bg-emerald-600 text-white rounded-full px-1.5 py-px text-[9px] align-middle">{{ pending|length }}</span>{% endif %}
+      </button>
+      <button onclick="switchTab('projects')" id="tab-projects"
+        class="tab-btn flex-1 py-2 text-xs font-medium">
+        Projects
+      </button>
+      <button onclick="switchTab('skills')" id="tab-skills"
+        class="tab-btn flex-1 py-2 text-xs font-medium">
+        Skills
+      </button>
+      <button onclick="switchTab('runs')" id="tab-runs"
+        class="tab-btn flex-1 py-2 text-xs font-medium">
+        Runs
+      </button>
+      <button onclick="switchTab('workers')" id="tab-workers"
+        class="tab-btn flex-1 py-2 text-xs font-medium">
+        Workers
+      </button>
+    </div>
+
+    <!-- Pane: Queue -->
+    <div id="pane-queue" class="pane flex-1 overflow-y-auto flex flex-col">
       <div id="approval-list"
            hx-get="/api/approvals"
            hx-trigger="every 10s"
-           hx-swap="innerHTML">
+           hx-swap="innerHTML"
+           class="flex-1">
         {% include "partials/approvals.html" %}
+      </div>
+      <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-800 flex-shrink-0">
+        <button hx-get="/api/approvals/history" hx-target="#right-panel" hx-swap="innerHTML"
+          class="text-xs text-gray-400 hover:text-emerald-500 transition-colors">
+          히스토리 보기 →
+        </button>
       </div>
     </div>
 
-    <!-- PROJECTS -->
-    <div class="flex-1 overflow-y-auto">
-      <div class="px-4 py-2 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
-        <span class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-medium">Projects</span>
-        {% if projects %}
-        <span class="text-xs text-gray-400">{{ projects|length }}</span>
-        {% endif %}
+    <!-- Pane: Projects -->
+    <div id="pane-projects" class="pane hidden flex-1 flex flex-col overflow-hidden">
+      <!-- Add project form -->
+      <div id="add-project-form" class="hidden px-3 py-2 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+        <div class="flex gap-1">
+          <input id="add-project-path" type="text" name="path"
+            placeholder="폴더 경로 입력..."
+            class="flex-1 text-xs px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:border-emerald-500"/>
+          <button onclick="submitAddProject()"
+            class="px-2 py-1 text-xs rounded bg-emerald-600 hover:bg-emerald-500 text-white transition-colors">추가</button>
+          <button type="button" onclick="toggleAddProject()"
+            class="px-2 py-1 text-xs rounded text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div id="add-project-error" class="mt-1 text-red-400 text-xs hidden"></div>
       </div>
-      {% if projects %}
-        {% for p in projects %}
-        <div class="px-4 py-2 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group"
-             hx-get="/api/projects/{{ p.id }}"
-             hx-target="#right-panel"
-             hx-swap="innerHTML">
-          <div class="min-w-0 flex-1">
-            <div class="text-sm font-medium truncate">{{ p.name }}</div>
-            <div class="text-xs font-mono text-gray-400 truncate">{{ p.path }}</div>
-          </div>
-          <svg class="w-4 h-4 text-gray-300 group-hover:text-gray-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+
+      <!-- "+" button row -->
+      <div class="px-4 py-1.5 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+        <span class="text-xs text-gray-400">{{ projects|length }}개</span>
+        <button onclick="toggleAddProject()" class="text-gray-400 hover:text-emerald-500 transition-colors text-xs flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
           </svg>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="px-4 py-6 text-sm text-gray-400 dark:text-gray-500 text-center">
-          프로젝트 없음.<br>
-          <span class="text-xs">승인 후 자동 추가됩니다.</span>
-        </div>
-      {% endif %}
+          폴더 추가
+        </button>
+      </div>
+
+      <div id="project-list" class="flex-1 overflow-y-auto">
+        {% include "partials/project_list.html" %}
+      </div>
     </div>
+
+    <!-- Pane: Skills -->
+    <div id="pane-skills" class="pane hidden flex-1 overflow-y-auto">
+      {% include "partials/skills_list.html" %}
+    </div>
+
+    <!-- Pane: Runs -->
+    <div id="pane-runs" class="pane hidden flex-1 overflow-y-auto">
+      {% include "partials/run_list.html" %}
+    </div>
+
+    <!-- Pane: Workers -->
+    <div id="pane-workers" class="pane hidden flex-1 overflow-y-auto">
+      {% include "partials/workers_list.html" %}
+    </div>
+
   </div>
 
   <!-- RIGHT PANEL (70%) -->
@@ -64,4 +113,74 @@
   </div>
 
 </div>
+
+<style>
+.tab-btn {
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: #374151; }
+.tab-btn.active { color: #059669; border-bottom-color: #059669; }
+@media (prefers-color-scheme: dark) {
+  .tab-btn { color: #9ca3af; }
+  .tab-btn:hover { color: #d1d5db; }
+  .tab-btn.active { color: #10b981; border-bottom-color: #10b981; }
+}
+</style>
+
+<script>
+const TABS = ['queue', 'projects', 'skills', 'runs', 'workers'];
+
+function switchTab(name) {
+  TABS.forEach(t => {
+    const btn = document.getElementById('tab-' + t);
+    const pane = document.getElementById('pane-' + t);
+    btn.classList.toggle('active', t === name);
+    pane.classList.toggle('hidden', t !== name);
+  });
+}
+
+function toggleAddProject() {
+  const form = document.getElementById('add-project-form');
+  form.classList.toggle('hidden');
+  if (!form.classList.contains('hidden')) {
+    document.getElementById('add-project-path').focus();
+    document.getElementById('add-project-error').classList.add('hidden');
+  }
+}
+
+async function submitAddProject() {
+  const input = document.getElementById('add-project-path');
+  const path = input.value.trim();
+  if (!path) return;
+  const errorEl = document.getElementById('add-project-error');
+  errorEl.classList.add('hidden');
+
+  const resp = await fetch('/api/projects/add', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'path=' + encodeURIComponent(path),
+  });
+  if (resp.ok) {
+    document.getElementById('project-list').innerHTML = await resp.text();
+    document.getElementById('add-project-form').classList.add('hidden');
+    input.value = '';
+  } else {
+    errorEl.textContent = await resp.text();
+    errorEl.classList.remove('hidden');
+  }
+}
+
+function loadSettings() {
+  htmx.ajax('GET', '/api/settings', {target: '#right-panel', swap: 'innerHTML'});
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.activeElement === document.getElementById('add-project-path')) {
+    e.preventDefault();
+    submitAddProject();
+  }
+});
+</script>
 {% endblock %}

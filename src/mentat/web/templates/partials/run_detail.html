@@ -1,0 +1,50 @@
+{% if run %}
+<div class="flex flex-col h-full">
+  <div class="border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
+    <button hx-get="/api/chat/panel" hx-target="#right-panel" hx-swap="innerHTML"
+      class="text-sm text-emerald-600 hover:text-emerald-500 flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      돌아가기
+    </button>
+    <span class="text-xs px-2 py-0.5 rounded-full
+      {% if run.status == 'done' %}bg-emerald-100 text-emerald-700
+      {% elif run.status == 'running' %}bg-blue-100 text-blue-700
+      {% elif run.status == 'error' %}bg-red-100 text-red-700
+      {% else %}bg-gray-100 text-gray-600{% endif %}">
+      {{ run.status }}
+    </span>
+  </div>
+  <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+    <div>
+      <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">작업</div>
+      <div class="text-sm font-medium">{{ run.task }}</div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">에이전트</div>
+        <div class="text-sm font-mono">{{ run.agent_id }}</div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">시작</div>
+        <div class="text-sm">{{ run.started_at[:16].replace('T', ' ') if run.started_at else '—' }}</div>
+      </div>
+    </div>
+    {% if run.finished_at %}
+    <div>
+      <div class="text-xs uppercase tracking-wider text-gray-500 mb-1">완료</div>
+      <div class="text-sm">{{ run.finished_at[:16].replace('T', ' ') }}</div>
+    </div>
+    {% endif %}
+    {% if run.result %}
+    <div>
+      <div class="text-xs uppercase tracking-wider text-gray-500 mb-2">결과</div>
+      <pre class="text-xs font-mono bg-gray-50 dark:bg-gray-800 rounded p-3 overflow-x-auto whitespace-pre-wrap">{{ run.result }}</pre>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="flex items-center justify-center h-full text-gray-400 text-sm">실행 기록을 찾을 수 없습니다.</div>
+{% endif %}
